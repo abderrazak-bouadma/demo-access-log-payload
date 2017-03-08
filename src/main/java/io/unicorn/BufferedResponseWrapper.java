@@ -5,6 +5,7 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.Locale;
@@ -15,29 +16,33 @@ import java.util.Locale;
  */
 public class BufferedResponseWrapper implements HttpServletResponse {
 
-    HttpServletResponse original;
-    TeeServletOutputStream tee;
-    ByteArrayOutputStream bos;
+    private HttpServletResponse original;
+    private ByteArrayOutputStream bos;
+    private PrintWriter teeWriter;
+    private TeeServletOutputStream teeStream;
 
-    public BufferedResponseWrapper(HttpServletResponse response) {
+
+
+    BufferedResponseWrapper(HttpServletResponse response) {
         original = response;
     }
 
-    public String getContent() {
+    String getContent() {
         return bos.toString();
     }
 
     public PrintWriter getWriter() throws IOException {
-        return original.getWriter();
-    }
+        if (this.teeWriter == null) {
+            this.teeWriter = new PrintWriter(new OutputStreamWriter(getOutputStream()));
+        }
+        return this.teeWriter;    }
 
     public ServletOutputStream getOutputStream() throws IOException {
-        if( tee == null ){
+        if (teeStream == null) {
             bos = new ByteArrayOutputStream();
-            tee = new TeeServletOutputStream( original.getOutputStream(), bos );
+            teeStream = new TeeServletOutputStream(original.getOutputStream(), bos);
         }
-        return tee;
-
+        return teeStream;
     }
 
     @Override
@@ -82,7 +87,12 @@ public class BufferedResponseWrapper implements HttpServletResponse {
 
     @Override
     public void flushBuffer() throws IOException {
-        tee.flush();
+        if (teeStream != null) {
+            teeStream.flush();
+        }
+        if (this.teeWriter != null) {
+            this.teeWriter.flush();
+        }
     }
 
     @Override

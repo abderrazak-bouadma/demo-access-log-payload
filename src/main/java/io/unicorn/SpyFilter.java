@@ -29,10 +29,11 @@ public class SpyFilter extends OncePerRequestFilter implements Ordered {
         Trace t = initTrace();
 
         BufferedResponseWrapper responseWrapper = new BufferedResponseWrapper(response);
+        BufferedRequestWrapper requestWrapper = new BufferedRequestWrapper(request);
 
-        enhanceTraceWithRequest(t, request);
+        enhanceTraceWithRequest(t, requestWrapper);
 
-        filterChain.doFilter(request, response);
+        filterChain.doFilter(requestWrapper, responseWrapper);
 
         enhanceTraceWithResponse(t, responseWrapper);
 
@@ -52,8 +53,13 @@ public class SpyFilter extends OncePerRequestFilter implements Ordered {
         t.setResponseBody(response.getContent());
     }
 
-    private void enhanceTraceWithRequest(Trace t, HttpServletRequest request) {
+    private void enhanceTraceWithRequest(Trace t, BufferedRequestWrapper request) {
         Collections.list(request.getHeaderNames())
                 .forEach(h -> t.getRequestHeaders().put(h, request.getHeader(h)));
+        try {
+            t.setRequestBody(request.getRequestBody());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
